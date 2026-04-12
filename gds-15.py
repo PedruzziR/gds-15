@@ -22,7 +22,6 @@ def conectar_planilha():
     ]
     creds = Credentials.from_service_account_info(creds_dict, scopes=escopos)
     client = gspread.authorize(creds)
-    # CONECTA À PLANILHA CENTRAL DE TOKENS
     return client.open("Controle_Tokens").sheet1 
 
 try:
@@ -33,42 +32,38 @@ except Exception as e:
 # =============================================================
 
 def enviar_email_resultados(nome, token, data_nasc, idade, perguntas, respostas):
-    # Lógica de Pontuação GDS-15 (Sim=1 ponto para itens depressivos / Não=1 ponto para itens protetores)
-    # Itens onde SIM vale ponto: 2, 3, 4, 6, 8, 9, 10, 12, 14, 15
-    # Itens onde NÃO vale ponto: 1, 5, 7, 11, 13
-    pontos = 0
-    itens_sim = [1, 2, 3, 5, 7, 8, 9, 11, 13, 14] # Índices da lista perguntas (0-14)
-    itens_nao = [0, 4, 6, 10, 12]
+    # Lógica de Cálculo GDS-15
+    # Pontuam com SIM: 2, 3, 4, 6, 8, 9, 10, 12, 14, 15 (índices 1, 2, 3, 5, 7, 8, 9, 11, 13, 14)
+    # Pontuam com NÃO: 1, 5, 7, 11, 13 (índices 0, 4, 6, 10, 12)
     
-    for i in itens_sim:
-        if respostas[i] == "Sim": pontos += 1
-    for i in itens_nao:
-        if respostas[i] == "Não": pontos += 1
-
-    total_sim = sum(1 for r in respostas.values() if r == "Sim")
-    total_nao = sum(1 for r in respostas.values() if r == "Não")
+    score = 0
+    indices_sim = [1, 2, 3, 5, 7, 8, 9, 11, 13, 14]
+    indices_nao = [0, 4, 6, 10, 12]
     
-    if pontos >= 11:
-        resultado = "DEPRESSÃO GRAVE"
-    elif pontos >= 5:
-        resultado = "CLÍNICO (Indicativo de sintomas depressivos)"
+    for idx in indices_sim:
+        if respostas[idx] == "Sim": score += 1
+    for idx in indices_nao:
+        if respostas[idx] == "Não": score += 1
+        
+    if score <= 5:
+        classificacao = "Normal (Ausência de sintomas significativos)"
+    elif score <= 10:
+        classificacao = "Depressão Leve"
     else:
-        resultado = "NÃO CLÍNICO"
+        classificacao = "Depressão Severa/Grave"
 
     assunto = f"Resultados GDS-15 - Paciente: {nome}"
     
     corpo = f"Avaliação GDS-15 (Escala de Depressão Geriátrica) concluída.\n\n"
-    corpo += f"=== DADOS DO(A) PACIENTE ===\n\n"
+    corpo += f"=== DADOS DO(A) PACIENTE ===\n"
     corpo += f"Nome Completo: {nome}\n"
     corpo += f"Data de Nascimento: {data_nasc}\n"
     corpo += f"Idade Calculada: {idade} anos\n"
     corpo += f"Token de Validação: {token}\n\n"
     
-    corpo += f"=== RESUMO DO SCORE ===\n"
-    corpo += f"TOTAL DE SIM: {total_sim}\n"
-    corpo += f"TOTAL DE NÃO: {total_nao}\n"
-    corpo += f"PONTUAÇÃO FINAL: {pontos} pontos\n"
-    corpo += f"RESULTADO: {resultado}\n\n"
+    corpo += f"=== RESULTADO DO RASTREIO ===\n"
+    corpo += f"PONTUAÇÃO TOTAL: {score} pontos\n"
+    corpo += f"CLASSIFICAÇÃO: {classificacao}\n\n"
     
     corpo += "================ RESPOSTAS ================\n\n"
     for i, pergunta in enumerate(perguntas):
@@ -93,7 +88,7 @@ def enviar_email_resultados(nome, token, data_nasc, idade, perguntas, respostas)
 
 st.set_page_config(page_title="GDS-15", layout="centered")
 
-# Estilização do botão em Azul
+# CSS forçado para Botão Azul e Design
 st.markdown("""
     <style>
     div[data-testid="stFormSubmitButton"] > button {
@@ -118,12 +113,11 @@ if "avaliacao_concluida" not in st.session_state:
 # Título Centralizado
 st.markdown("<h1 style='text-align: center;'>Clínica de Psicologia e Psicanálise Bruna Ligoski</h1>", unsafe_allow_html=True)
 
-# TELA FINAL
 if st.session_state.avaliacao_concluida:
     st.success("Avaliação concluída e enviada com sucesso! Muito obrigado(a) pela sua colaboração.")
     st.stop()
 
-# ================= VALIDAÇÃO AUTOMÁTICA DO TOKEN (SEM LOGIN) =================
+# ================= VALIDAÇÃO SILENCIOSA DO TOKEN =================
 parametros = st.query_params
 token_url = parametros.get("token", None)
 
@@ -145,11 +139,12 @@ try:
         st.error("⚠️ Este link é inválido ou já expirou.")
         st.stop()
 except Exception:
-    st.error("Erro técnico na validação do acesso.")
+    st.error("Erro na validação do acesso.")
     st.stop()
 
 # ================= QUESTIONÁRIO GDS-15 =================
 linha_fina = "<hr style='margin-top: 8px; margin-bottom: 8px;'/>"
+
 st.markdown(linha_fina, unsafe_allow_html=True)
 st.markdown("<h3 style='text-align: center;'>Escala de Depressão Geriátrica (GDS-15)</h3>", unsafe_allow_html=True)
 st.markdown(linha_fina, unsafe_allow_html=True)
@@ -159,20 +154,20 @@ st.markdown(linha_fina, unsafe_allow_html=True)
 
 perguntas = [
     "1. Está satisfeito(a) com sua vida?",
-    "2. Interrompeu muitas de suas atividades?",
-    "3. Acha sua vida vazia?",
-    "4. Aborrece-se com frequência?",
-    "5. Sente-se bem com a vida na maior parte do tempo?",
-    "6. Teme que algo ruim lhe aconteça?",
-    "7. Sente-se alegre a maior parte do tempo?",
+    "2. Interrompeu muitas de suas atividades e interesses?",
+    "3. Sente que sua vida está vazia?",
+    "4. Sente-se aborrecido(a) com frequência?",
+    "5. Sente-se de bom humor na maior parte do tempo?",
+    "6. Tem medo de que algo de ruim lhe aconteça?",
+    "7. Sente-se feliz na maior parte do tempo?",
     "8. Sente-se desamparado(a) com frequência?",
     "9. Prefere ficar em casa a sair e fazer coisas novas?",
-    "10. Acha que tem mais problemas de memória que outras pessoas?",
-    "11. Acha que é maravilhoso estar vivo(a)?",
-    "12. Sente-se inútil?",
-    "13. Sente-se cheio(a) de energia?",
-    "14. Sente-se sem esperança?",
-    "15. Acha que os outros têm mais sorte que você?"
+    "10. Sente que tem mais problemas de memória do que a maioria?",
+    "11. Acha que é maravilhoso estar vivo(a) agora?",
+    "12. Sente-se inútil da maneira como está agora?",
+    "13. Sente-se cheio(a) de energia e vontade?",
+    "14. Sente que sua situação é sem esperança?",
+    "15. Acha que a maioria das pessoas está melhor do que você?"
 ]
 
 opcoes_respostas = ["Sim", "Não"]
@@ -188,8 +183,6 @@ with st.form("form_gds"):
         st.write(f"**{p}**")
         respostas_coletadas[i] = st.radio(f"q_{i}", opcoes_respostas, index=None, label_visibility="collapsed")
         st.divider()
-
-    st.markdown("<small>Fonte: Yesavage, J.A., et al. (1983). Development and validation of a geriatric depression screening scale.</small>", unsafe_allow_html=True)
 
     if st.form_submit_button("Enviar Avaliação"):
         if not nome_paciente or data_nasc is None or any(r is None for r in respostas_coletadas.values()):
