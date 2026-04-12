@@ -46,11 +46,11 @@ def enviar_email_resultados(nome, token, data_nasc, idade, perguntas, respostas)
         if respostas[idx] == "Não": score += 1
         
     if score <= 5:
-        classificacao = "Normal (Ausência de sintomas significativos)"
+        classificacao = "**Normal (Ausência de sintomas significativos)**"
     elif score <= 10:
-        classificacao = "Depressão Leve"
+        classificacao = "**Depressão Leve**"
     else:
-        classificacao = "Depressão Severa/Grave"
+        classificacao = "**Depressão Severa/Grave**"
 
     assunto = f"Resultados GDS-15 - Paciente: {nome}"
     
@@ -58,10 +58,10 @@ def enviar_email_resultados(nome, token, data_nasc, idade, perguntas, respostas)
     corpo += f"=== DADOS DO(A) PACIENTE ===\n"
     corpo += f"Nome Completo: {nome}\n"
     corpo += f"Data de Nascimento: {data_nasc}\n"
-    corpo += f"Idade Calculada: {idade} anos\n"
+    corpo += f"Idade: {idade} anos\n"
     corpo += f"Token de Validação: {token}\n\n"
     
-    corpo += f"=== RESULTADO DO RASTREIO ===\n"
+    corpo += f"=== RESULTADO DO RASTREIO ===\n\n"
     corpo += f"PONTUAÇÃO TOTAL: {score} pontos\n"
     corpo += f"CLASSIFICAÇÃO: {classificacao}\n\n"
     
